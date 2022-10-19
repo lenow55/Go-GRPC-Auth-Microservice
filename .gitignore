@@ -18,3 +18,7 @@
 
 .idea
 pgdata
+
+main
+tags
+build/

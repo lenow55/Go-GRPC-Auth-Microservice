@@ -35,6 +35,7 @@ func (u *userUseCase) Register(ctx context.Context, user *models.User) (*models.
 	span, ctx := opentracing.StartSpanFromContext(ctx, "UserUseCase.Register")
 	defer span.Finish()
 
+    //проверяем что такого пользователя нет в бд
 	existsUser, err := u.userPgRepo.FindByEmail(ctx, user.Email)
 	if existsUser != nil || err == nil {
 		return nil, grpc_errors.ErrEmailExists
@@ -63,6 +64,7 @@ func (u *userUseCase) FindById(ctx context.Context, userID uuid.UUID) (*models.U
 	span, ctx := opentracing.StartSpanFromContext(ctx, "UserUseCase.FindById")
 	defer span.Finish()
 
+    // проверяем пользователя в кэше
 	cachedUser, err := u.redisRepo.GetByIDCtx(ctx, userID.String())
 	if err != nil && !errors.Is(err, redis.Nil) {
 		u.logger.Errorf("redisRepo.GetByIDCtx", err)
@@ -71,11 +73,13 @@ func (u *userUseCase) FindById(ctx context.Context, userID uuid.UUID) (*models.U
 		return cachedUser, nil
 	}
 
+    // проверяем пользователя в бд
 	foundUser, err := u.userPgRepo.FindById(ctx, userID)
 	if err != nil {
 		return nil, errors.Wrap(err, "userPgRepo.FindById")
 	}
 
+    // кэшируем пользователя
 	if err := u.redisRepo.SetUserCtx(ctx, foundUser.UserID.String(), userByIdCacheDuration, foundUser); err != nil {
 		u.logger.Errorf("redisRepo.SetUserCtx", err)
 	}

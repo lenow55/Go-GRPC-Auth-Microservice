@@ -56,9 +56,9 @@ session:
 
 metrics:
   url: 0.0.0.0:7070
-  service: api
+  ServiceName: api
 
 jaeger:
-  Host: localhost:6831
+  Host: jaeger:6831
   ServiceName: Auth_GRPC
   LogSpans: true

@@ -45,21 +45,24 @@ func (u *usersService) Register(ctx context.Context, r *userService.RegisterRequ
 
 // Login user with email and password
 func (u *usersService) Login(ctx context.Context, r *userService.LoginRequest) (*userService.LoginResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "user.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "user.Login")
 	defer span.Finish()
 
+    // проверяем майлу
 	email := r.GetEmail()
 	if !utils.ValidateEmail(email) {
 		u.logger.Errorf("ValidateEmail: %v", email)
 		return nil, status.Errorf(codes.InvalidArgument, "ValidateEmail: %v", email)
 	}
 
+    // проверяем майлу и пароль пользователя
 	user, err := u.userUC.Login(ctx, email, r.GetPassword())
 	if err != nil {
 		u.logger.Errorf("userUC.Login: %v", err)
 		return nil, status.Errorf(grpc_errors.ParseGRPCErrStatusCode(err), "Login: %v", err)
 	}
 
+    // создаём сессию в редисе
 	session, err := u.sessUC.CreateSession(ctx, &models.Session{
 		UserID: user.UserID,
 	}, u.cfg.Session.Expire)
@@ -68,12 +71,13 @@ func (u *usersService) Login(ctx context.Context, r *userService.LoginRequest) (
 		return nil, status.Errorf(grpc_errors.ParseGRPCErrStatusCode(err), "sessUC.CreateSession: %v", err)
 	}
 
+    //возвращаем сообщение с сессией
 	return &userService.LoginResponse{User: u.userModelToProto(user), SessionId: session}, err
 }
 
 // Find user by email address
 func (u *usersService) FindByEmail(ctx context.Context, r *userService.FindByEmailRequest) (*userService.FindByEmailResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "user.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "user.FindByEmail")
 	defer span.Finish()
 
 	email := r.GetEmail()
@@ -93,7 +97,7 @@ func (u *usersService) FindByEmail(ctx context.Context, r *userService.FindByEma
 
 // Find user by uuid
 func (u *usersService) FindByID(ctx context.Context, r *userService.FindByIDRequest) (*userService.FindByIDResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "user.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "user.FindByID")
 	defer span.Finish()
 
 	userUUID, err := uuid.Parse(r.GetUuid())
@@ -113,7 +117,7 @@ func (u *usersService) FindByID(ctx context.Context, r *userService.FindByIDRequ
 
 // Get session id from, ctx metadata, find user by uuid and returns it
 func (u *usersService) GetMe(ctx context.Context, r *userService.GetMeRequest) (*userService.GetMeResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "user.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "user.GetMe")
 	defer span.Finish()
 
 	sessID, err := u.getSessionIDFromCtx(ctx)
@@ -142,7 +146,7 @@ func (u *usersService) GetMe(ctx context.Context, r *userService.GetMeRequest) (
 
 // Logout user, delete current session
 func (u *usersService) Logout(ctx context.Context, request *userService.LogoutRequest) (*userService.LogoutResponse, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "user.Create")
+	span, ctx := opentracing.StartSpanFromContext(ctx, "user.Logout")
 	defer span.Finish()
 
 	sessID, err := u.getSessionIDFromCtx(ctx)
